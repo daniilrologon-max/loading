@@ -21,20 +21,61 @@
       justify-content: center;
       overflow: hidden;
       user-select: none;
+      position: relative;
+    }
+
+    .bg-layer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      background-size: cover;
+      background-position: center;
+      opacity: 0;
+      transition: opacity 1.2s ease;
+      will-change: opacity;
+    }
+
+    .bg-layer.active {
+      opacity: 1;
+    }
+
+    .bg-layer.fade-out {
+      opacity: 0;
+    }
+
+    .overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.55);
+      z-index: 1;
     }
 
     .container {
+      position: relative;
+      z-index: 2;
       text-align: center;
       width: 90%;
       max-width: 520px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
     }
 
-    .logo {
-      font-size: 28px;
-      font-weight: 600;
-      letter-spacing: 1px;
-      margin-bottom: 8px;
-      color: #fff;
+    .logo-icon {
+      display: block;
+      margin: 0 auto 8px auto;
+      width: 64px;
+      height: 64px;
+      object-fit: contain;
+      filter: drop-shadow(0 0 8px rgba(0,0,0,0.6));
     }
 
     .server-name {
@@ -42,6 +83,7 @@
       color: #aaa;
       margin-bottom: 32px;
       min-height: 24px;
+      margin-top: 29px;
     }
 
     .status {
@@ -49,23 +91,6 @@
       color: #ccc;
       margin-bottom: 18px;
       min-height: 22px;
-    }
-
-    .progress-outer {
-      width: 100%;
-      height: 8px;
-      background: #1a1a1a;
-      border-radius: 4px;
-      overflow: hidden;
-      border: 1px solid #333;
-    }
-
-    .progress-inner {
-      height: 100%;
-      width: 0%;
-      background: linear-gradient(90deg, #4caf50, #8bc34a);
-      border-radius: 4px;
-      transition: width 0.25s ease;
     }
 
     .files {
@@ -79,70 +104,247 @@
       font-size: 14px;
       color: #666;
     }
+
+    .tips-container {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80%;
+      max-width: 600px;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 4px;
+      padding: 30px 40px;
+      z-index: 3;
+      text-align: center;
+      min-height: 140px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tips-title {
+      color: #e67e22;
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      letter-spacing: 0.5px;
+    }
+
+    .tips-text {
+      color: #ddd;
+      font-size: 14px;
+      line-height: 1.6;
+      max-width: 90%;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    @media (max-width: 600px) {
+      .tips-container {
+        width: 90%;
+        padding: 20px 25px;
+        bottom: 20px;
+        min-height: 80px;
+      }
+      .tips-title {
+        font-size: 14px;
+      }
+      .tips-text {
+        font-size: 13px;
+      }
+    }
   </style>
 </head>
 <body>
+
+  <div class="bg-layer active" id="bgLayer0"></div>
+  <div class="bg-layer" id="bgLayer1"></div>
+  <div class="overlay"></div>
+
   <div class="container">
-    <div class="logo">Z-Arena</div>
-    <div class="server-name" id="serverName">Подключение...</div>
+    <img class="logo-icon" src="img/icon.jpg" alt="icon" onerror="this.style.display='none'">
+    <div class="server-name" id="serverName">Welcome to the Z-Arena server!</div>
     <div class="status" id="status">Загрузка...</div>
-
-    <div class="progress-outer">
-      <div class="progress-inner" id="progress"></div>
-    </div>
-
     <div class="files" id="files"></div>
     <div class="map" id="map"></div>
   </div>
 
+  <div class="tips-container" id="tipsContainer">
+    <div class="tips-title" id="tipsTitle">Совет</div>
+    <div class="tips-text" id="tipsText">Загрузка советов...</div>
+  </div>
+
   <script>
-    let totalFiles = 0;
-    let neededFiles = 0;
+    (function() {
+      const totalImages = 10;
+      const bgLayers = [
+        document.getElementById('bgLayer0'),
+        document.getElementById('bgLayer1')
+      ];
+      let activeIndex = 0;
+      let currentImageIndex = 0;
+      let intervalId = null;
 
-    function GameDetails(servername, serverurl, mapname, maxplayers, steamid, gamemode, volume, language) {
-      document.getElementById('serverName').textContent = servername || 'Сервер';
-      document.getElementById('map').textContent = mapname ? `Карта: ${mapname}` : '';
-    }
-
-    function SetStatusChanged(status) {
-      document.getElementById('status').textContent = status || 'Загрузка...';
-    }
-
-    function SetFilesTotal(total) {
-      totalFiles = total;
-      updateFiles();
-    }
-
-    function SetFilesNeeded(needed) {
-      neededFiles = needed;
-      updateFiles();
-      updateProgress();
-    }
-
-    function DownloadingFile(fileName) {
-      // document.getElementById('status').textContent = 'Скачивание: ' + fileName;
-    }
-
-    function updateFiles() {
-      if (totalFiles > 0) {
-        const downloaded = totalFiles - neededFiles;
-        document.getElementById('files').textContent = 
-          `Файлы: ${downloaded} / ${totalFiles}`;
+      function preloadImage(src) {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve(src);
+          img.onerror = () => resolve(null);
+          img.src = src;
+        });
       }
-    }
 
-    function updateProgress() {
-      if (totalFiles > 0) {
-        const percent = Math.max(0, Math.min(100, ((totalFiles - neededFiles) / totalFiles) * 100));
-        document.getElementById('progress').style.width = percent + '%';
+      function setLayerBackground(layer, imageIndex) {
+        const path = `img/image${imageIndex}.jpg`;
+        layer.style.backgroundImage = `url('${path}')`;
+        layer.dataset.index = imageIndex;
       }
-    }
 
-    window.GameDetails = GameDetails;
-    window.SetStatusChanged = SetStatusChanged;
-    window.SetFilesTotal = SetFilesTotal;
-    window.SetFilesNeeded = SetFilesNeeded;
-    window.DownloadingFile = DownloadingFile;
+      function switchBackground() {
+        let newIndex;
+        do {
+          newIndex = Math.floor(Math.random() * (totalImages + 1));
+        } while (newIndex === currentImageIndex && totalImages > 0);
+        currentImageIndex = newIndex;
+
+        const nextActive = activeIndex === 0 ? 1 : 0;
+        const activeLayer = bgLayers[activeIndex];
+        const nextLayer = bgLayers[nextActive];
+
+        setLayerBackground(nextLayer, currentImageIndex);
+
+        nextLayer.classList.remove('fade-out');
+        nextLayer.classList.add('active');
+
+        setTimeout(() => {
+          activeLayer.classList.remove('active');
+          activeLayer.classList.add('fade-out');
+        }, 50);
+
+        activeIndex = nextActive;
+      }
+
+      async function initBackgrounds() {
+        currentImageIndex = Math.floor(Math.random() * (totalImages + 1));
+        
+        const startPath = `img/image${currentImageIndex}.jpg`;
+        try {
+          const result = await preloadImage(startPath);
+          if (result) {
+            bgLayers[0].style.backgroundImage = `url('${startPath}')`;
+            bgLayers[1].style.backgroundImage = `url('${startPath}')`;
+          } else {
+            bgLayers[0].style.background = 'none';
+            bgLayers[1].style.background = 'none';
+          }
+        } catch {
+        }
+
+        bgLayers[0].classList.add('active');
+        bgLayers[0].classList.remove('fade-out');
+        bgLayers[1].classList.remove('active');
+        bgLayers[1].classList.add('fade-out');
+
+        if (intervalId) clearInterval(intervalId);
+        intervalId = setInterval(switchBackground, 10000);
+      }
+
+      initBackgrounds();
+
+      let totalFiles = 0;
+      let neededFiles = 0;
+
+      function GameDetails(servername, serverurl, mapname, maxplayers, steamid, gamemode, volume, language) {
+        document.getElementById('map').textContent = mapname ? `Карта: ${mapname}` : '';
+      }
+
+      function SetStatusChanged(status) {
+        document.getElementById('status').textContent = status || 'Загрузка...';
+      }
+
+      function SetFilesTotal(total) {
+        totalFiles = total;
+        updateFiles();
+      }
+
+      function SetFilesNeeded(needed) {
+        neededFiles = needed;
+        updateFiles();
+        updateProgress();
+      }
+
+      function DownloadingFile(fileName) {
+
+      }
+
+      function updateFiles() {
+        if (totalFiles > 0) {
+          const downloaded = totalFiles - neededFiles;
+          document.getElementById('files').textContent = 
+            `Файлы: ${downloaded} / ${totalFiles}`;
+        }
+      }
+
+      function updateProgress() {
+        if (totalFiles > 0) {
+          const percent = Math.max(0, Math.min(100, ((totalFiles - neededFiles) / totalFiles) * 100));
+          document.getElementById('progress').style.width = percent + '%';
+        }
+      }
+
+      window.GameDetails = GameDetails;
+      window.SetStatusChanged = SetStatusChanged;
+      window.SetFilesTotal = SetFilesTotal;
+      window.SetFilesNeeded = SetFilesNeeded;
+      window.DownloadingFile = DownloadingFile;
+
+      const tipsData = [
+        { title: 'Совет №1', text: 'Всегда есть шанс что выстрел в голову будет не летальным.' },
+        { title: 'Совет №2', text: 'Если вы попали под влияние слезоточивого газа то вы можете умыться \nлюбым напитком или в воде' },
+        { title: 'Совет №3', text: 'В рации есть PTT мод, который позволяет общаться не доставая рацию.' },
+        { title: 'Совет №4', text: 'С оружием в руках вы медленно передвигаетесь,\nот этого зависят и габариты оружия' },
+        { title: 'Совет №5', text: 'Вы можете делать коктейль молотова!\nДля этого вам требуеться бутылка, бочка с горючем и бинт.' },
+        { title: 'Совет №6', text: 'Не забывайте использовать наклоны.\nbind [key] +alt1/+alt2' },
+        { title: 'Совет №7', text: 'Гранаты очень сильные.' },
+        { title: 'Совет №8', text: 'Используйте дымовые гранаты для создания укрытия при передвижении.' },
+        { title: 'Совет №9', text: 'Еда может быть отравлена, будьте осторожней.' },
+        { title: 'Совет №10', text: 'Носите броню!\nДаже если не от пули, то от осколков!' },
+        { title: 'Совет №11', text: 'При переломе лучше используйте морфин.' },
+        { title: 'Совет №12', text: 'Всегда надевайте ремень для оружия\nС ним ваше оружие не выпадет.' },
+        { title: 'Совет №13', text: 'Подсумок позволяет ложить некоторые вещи ближнего боя в инвентарь.' },
+		{ title: 'Случайный факт №1', text: 'Z-Кошка не маскот Z-Arena...' }
+      ];
+
+      let tipInterval = null;
+
+      function showRandomTip() {
+        if (tipsData.length === 0) {
+          document.getElementById('tipsTitle').textContent = 'Совет';
+          document.getElementById('tipsText').textContent = 'Нет доступных советов';
+          return;
+        }
+        const randomIndex = Math.floor(Math.random() * tipsData.length);
+        const tip = tipsData[randomIndex];
+        document.getElementById('tipsTitle').textContent = tip.title;
+        document.getElementById('tipsText').textContent = tip.text;
+      }
+
+      function initTips() {
+        if (tipsData.length > 0) {
+          showRandomTip();
+          if (tipInterval) clearInterval(tipInterval);
+          tipInterval = setInterval(showRandomTip, 12000);
+        } else {
+          document.getElementById('tipsTitle').textContent = 'Совет';
+          document.getElementById('tipsText').textContent = 'Нет доступных советов';
+        }
+      }
+
+      initTips();
+    })();
   </script>
 </body>
 </html>
