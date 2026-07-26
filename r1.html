@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loading...</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #0a0a0a;
+      color: #ffffff;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    .container {
+      text-align: center;
+      width: 90%;
+      max-width: 520px;
+    }
+
+    .logo {
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+      color: #fff;
+    }
+
+    .server-name {
+      font-size: 18px;
+      color: #aaa;
+      margin-bottom: 32px;
+      min-height: 24px;
+    }
+
+    .status {
+      font-size: 15px;
+      color: #ccc;
+      margin-bottom: 18px;
+      min-height: 22px;
+    }
+
+    .progress-outer {
+      width: 100%;
+      height: 8px;
+      background: #1a1a1a;
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid #333;
+    }
+
+    .progress-inner {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #4caf50, #8bc34a);
+      border-radius: 4px;
+      transition: width 0.25s ease;
+    }
+
+    .files {
+      margin-top: 14px;
+      font-size: 13px;
+      color: #777;
+    }
+
+    .map {
+      margin-top: 28px;
+      font-size: 14px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">Z-Arena</div>
+    <div class="server-name" id="serverName">Подключение...</div>
+    <div class="status" id="status">Загрузка...</div>
+
+    <div class="progress-outer">
+      <div class="progress-inner" id="progress"></div>
+    </div>
+
+    <div class="files" id="files"></div>
+    <div class="map" id="map"></div>
+  </div>
+
+  <script>
+    let totalFiles = 0;
+    let neededFiles = 0;
+
+    function GameDetails(servername, serverurl, mapname, maxplayers, steamid, gamemode, volume, language) {
+      document.getElementById('serverName').textContent = servername || 'Сервер';
+      document.getElementById('map').textContent = mapname ? `Карта: ${mapname}` : '';
+    }
+
+    function SetStatusChanged(status) {
+      document.getElementById('status').textContent = status || 'Загрузка...';
+    }
+
+    function SetFilesTotal(total) {
+      totalFiles = total;
+      updateFiles();
+    }
+
+    function SetFilesNeeded(needed) {
+      neededFiles = needed;
+      updateFiles();
+      updateProgress();
+    }
+
+    function DownloadingFile(fileName) {
+      // document.getElementById('status').textContent = 'Скачивание: ' + fileName;
+    }
+
+    function updateFiles() {
+      if (totalFiles > 0) {
+        const downloaded = totalFiles - neededFiles;
+        document.getElementById('files').textContent = 
+          `Файлы: ${downloaded} / ${totalFiles}`;
+      }
+    }
+
+    function updateProgress() {
+      if (totalFiles > 0) {
+        const percent = Math.max(0, Math.min(100, ((totalFiles - neededFiles) / totalFiles) * 100));
+        document.getElementById('progress').style.width = percent + '%';
+      }
+    }
+
+    window.GameDetails = GameDetails;
+    window.SetStatusChanged = SetStatusChanged;
+    window.SetFilesTotal = SetFilesTotal;
+    window.SetFilesNeeded = SetFilesNeeded;
+    window.DownloadingFile = DownloadingFile;
+  </script>
+</body>
+</html>
